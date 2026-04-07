@@ -1,0 +1,428 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Camera, Smartphone, Play, Info, CheckCircle, AlertTriangle, 
+  ClipboardCheck, ChevronRight, X, ShieldAlert, Settings, Wrench, 
+  Layers, FileText, History, UserCheck, Plus, Trash2, Database, Save, 
+  Video, Scan, RefreshCw, Link as LinkIcon, Lock, Unlock, Edit, Layout, Key
+} from 'lucide-react';
+
+const App = () => {
+  // --- STATE YÖNETİMİ ---
+  // Varsayılan olarak sadece 'admin' (Mühendis) görünümü kalacak
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [engineerPassword, setEngineerPassword] = useState('1234'); 
+  const [accessKey, setAccessKey] = useState('');
+  const [authError, setAuthError] = useState('');
+  
+  // Kütüphane Verileri
+  const [library, setLibrary] = useState([
+    {
+      id: 'loto',
+      title: 'LOTO (Kilitleme-Etiketleme)',
+      icon: 'ShieldAlert',
+      description: 'Enerji kesme ve güvenlik kilidi prosedürü.',
+      steps: ['Enerji kaynaklarını belirleyin.', 'Kalıntı enerjiyi boşaltın.', 'Kilidi yerleştirin.'],
+      tools: ['LOTO Kilidi', 'Multimetre'],
+      videoTitle: 'LOTO Güvenlik Eğitimi V1',
+      videoUrl: 'https://example.com/loto-video',
+      imageUrl: 'https://images.unsplash.com/photo-1590483734724-383b853b237d?auto=format&fit=crop&q=80&w=400'
+    },
+    {
+      id: 'maintenance',
+      title: 'CNC Haftalık Bakım',
+      icon: 'Wrench',
+      description: 'Periyodik yağlama ve filtre kontrolü.',
+      steps: ['Yağ seviyesini kontrol edin.', 'Filtreleri temizleyin.', 'Rulmanları gresleyin.'],
+      tools: ['Gres Tabancası', 'Hava Tabancası'],
+      videoTitle: 'CNC Bakım Rehberi',
+      videoUrl: 'https://example.com/cnc-maintenance',
+      imageUrl: 'https://images.unsplash.com/photo-1537462715879-360eeb61a0ad?auto=format&fit=crop&q=80&w=400'
+    }
+  ]);
+
+  // Yeni/Düzenlenen SOP State'i
+  const [editingSopId, setEditingSopId] = useState(null);
+  const [sopForm, setSopForm] = useState({
+    title: '',
+    description: '',
+    steps: [''],
+    videoTitle: '',
+    videoUrl: '',
+    imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=400'
+  });
+
+  // Şifre Ayarları
+  const [showPasswordSettings, setShowPasswordSettings] = useState(false);
+  const [passUpdate, setPassUpdate] = useState({ old: '', new: '', confirm: '' });
+  const [passStatus, setPassStatus] = useState({ type: '', msg: '' });
+
+  // Terminal Önizleme (Simülasyon için)
+  const [previewSop, setPreviewSop] = useState(null);
+  const [currentStep, setCurrentStep] = useState(0);
+
+  // --- FONKSİYONLAR ---
+
+  const handleAuth = (e) => {
+    if (e) e.preventDefault();
+    if (accessKey === engineerPassword) { 
+      setIsAuthenticated(true);
+      setAuthError('');
+    } else {
+      setAuthError('Geçersiz erişim anahtarı.');
+    }
+  };
+
+  const handleSaveSop = () => {
+    if (!sopForm.title) return;
+
+    if (editingSopId) {
+      // Güncelleme
+      setLibrary(library.map(sop => 
+        sop.id === editingSopId ? { ...sopForm, id: editingSopId, icon: sop.icon } : sop
+      ));
+      setEditingSopId(null);
+    } else {
+      // Yeni Ekleme
+      const newId = Math.random().toString(36).substr(2, 9);
+      setLibrary([...library, { ...sopForm, id: newId, icon: 'FileText' }]);
+    }
+    resetForm();
+  };
+
+  const startEditing = (sop) => {
+    setEditingSopId(sop.id);
+    setSopForm({
+      title: sop.title,
+      description: sop.description || '',
+      steps: sop.steps || [''],
+      videoTitle: sop.videoTitle || '',
+      videoUrl: sop.videoUrl || '',
+      imageUrl: sop.imageUrl
+    });
+    setShowPasswordSettings(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const deleteSop = (id) => {
+    if (window.confirm('Bu SOP kartını silmek istediğinize emin misiniz?')) {
+      setLibrary(library.filter(sop => sop.id !== id));
+    }
+  };
+
+  const resetForm = () => {
+    setSopForm({
+      title: '',
+      description: '',
+      steps: [''],
+      videoTitle: '',
+      videoUrl: '',
+      imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=400'
+    });
+    setEditingSopId(null);
+  };
+
+  const updateStep = (index, value) => {
+    const newSteps = [...sopForm.steps];
+    newSteps[index] = value;
+    setSopForm({ ...sopForm, steps: newSteps });
+  };
+
+  const addStepField = () => setSopForm({ ...sopForm, steps: [...sopForm.steps, ''] });
+  
+  const removeStepField = (index) => {
+    if (sopForm.steps.length > 1) {
+      const newSteps = sopForm.steps.filter((_, i) => i !== index);
+      setSopForm({ ...sopForm, steps: newSteps });
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    e.preventDefault();
+    if (passUpdate.old !== engineerPassword) {
+      setPassStatus({ type: 'error', msg: 'Mevcut şifre hatalı!' });
+      return;
+    }
+    if (passUpdate.new !== passUpdate.confirm) {
+      setPassStatus({ type: 'error', msg: 'Şifreler eşleşmiyor!' });
+      return;
+    }
+    setEngineerPassword(passUpdate.new);
+    setPassStatus({ type: 'success', msg: 'Şifre güncellendi.' });
+    setTimeout(() => {
+      setPassStatus({ type: '', msg: '' });
+      setShowPasswordSettings(false);
+      setPassUpdate({ old: '', new: '', confirm: '' });
+    }, 1500);
+  };
+
+  // --- TASARIM BİLEŞENLERİ ---
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col overflow-x-hidden">
+      {/* Navbar */}
+      <header className="bg-white border-b border-slate-200 p-4 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 p-2.5 rounded-2xl shadow-lg shadow-blue-100">
+              <Layers size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="font-black text-xl text-slate-800 leading-none">VisionGuide <span className="text-blue-600 italic tracking-tighter">AR-SOP</span></h1>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Mühendis Kontrol Paneli</p>
+            </div>
+          </div>
+          
+          {isAuthenticated && (
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => { setShowPasswordSettings(!showPasswordSettings); setEditingSopId(null); }}
+                className={`p-2.5 rounded-xl transition-all ${showPasswordSettings ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                title="Şifre Ayarları"
+              >
+                <Key size={20} />
+              </button>
+              <button 
+                onClick={() => setIsAuthenticated(false)} 
+                className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 rounded-xl font-bold text-xs hover:bg-red-600 hover:text-white transition-all shadow-sm"
+              >
+                <Unlock size={16} /> ÇIKIŞ
+              </button>
+            </div>
+          )}
+        </div>
+      </header>
+
+      <main className="flex-1 max-w-7xl mx-auto w-full p-6 lg:p-8">
+        {!isAuthenticated ? (
+          /* GİRİŞ EKRANI */
+          <div className="max-w-md mx-auto mt-20 p-10 bg-white border border-slate-200 rounded-[3rem] shadow-2xl text-center space-y-8 animate-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto text-blue-600 shadow-inner">
+              <Lock size={40} />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Erişim Anahtarı</h2>
+              <p className="text-sm text-slate-500">Kütüphaneyi yönetmek için şifrenizi girin.</p>
+            </div>
+            <form onSubmit={handleAuth} className="space-y-4">
+              <input 
+                type="password" 
+                placeholder="••••" 
+                className="w-full p-5 bg-slate-50 border border-slate-200 rounded-[2rem] text-center text-2xl font-black tracking-[0.5em] outline-none focus:ring-4 ring-blue-500/10 transition-all"
+                value={accessKey}
+                onChange={(e) => setAccessKey(e.target.value)}
+                autoFocus
+              />
+              {authError && (
+                <p className="text-xs text-red-500 font-bold bg-red-50 py-2 rounded-lg animate-bounce">{authError}</p>
+              )}
+              <button 
+                type="submit" 
+                className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black text-lg shadow-xl shadow-slate-200 hover:bg-blue-600 transition-all active:scale-95"
+              >
+                PANELİ AÇ
+              </button>
+            </form>
+          </div>
+        ) : (
+          /* MÜHENDİS PANELİ */
+          <div className="space-y-8 animate-in fade-in duration-500">
+            
+            {/* ŞİFRE GÜNCELLEME ALANI */}
+            {showPasswordSettings && (
+              <div className="bg-indigo-50 p-8 rounded-[2.5rem] border border-indigo-100 space-y-6 animate-in slide-in-from-top shadow-sm">
+                <div className="flex items-center gap-3 border-b border-indigo-100 pb-4">
+                  <Key className="text-indigo-600" />
+                  <h3 className="font-black text-indigo-900 uppercase tracking-widest text-sm">Sistem Şifresini Güncelle</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-indigo-400 uppercase ml-2">Mevcut Şifre</label>
+                    <input type="password" placeholder=" Eski" className="w-full p-4 rounded-2xl border border-indigo-200 outline-none focus:ring-2 ring-indigo-500/20" value={passUpdate.old} onChange={e => setPassUpdate({...passUpdate, old: e.target.value})} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-indigo-400 uppercase ml-2">Yeni Şifre</label>
+                    <input type="password" placeholder=" Yeni" className="w-full p-4 rounded-2xl border border-indigo-200 outline-none focus:ring-2 ring-indigo-500/20" value={passUpdate.new} onChange={e => setPassUpdate({...passUpdate, new: e.target.value})} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-indigo-400 uppercase ml-2">Yeni Şifre (Tekrar)</label>
+                    <input type="password" placeholder=" Tekrar" className="w-full p-4 rounded-2xl border border-indigo-200 outline-none focus:ring-2 ring-indigo-500/20" value={passUpdate.confirm} onChange={e => setPassUpdate({...passUpdate, confirm: e.target.value})} />
+                  </div>
+                </div>
+                <div className="flex justify-between items-center">
+                  {passStatus.msg && <p className={`text-xs font-bold ${passStatus.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>{passStatus.msg}</p>}
+                  <div className="flex gap-3">
+                    <button onClick={() => setShowPasswordSettings(false)} className="px-6 py-3 font-bold text-slate-400">İptal</button>
+                    <button onClick={handlePasswordChange} className="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-black shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all">ŞİFREYİ KAYDET</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+              
+              {/* SOL: SOP OLUŞTURMA / DÜZENLEME FORMU */}
+              <div className="lg:col-span-5 bg-white rounded-[3rem] p-8 border border-slate-200 h-fit space-y-6 shadow-sm sticky top-28">
+                <div className="flex items-center justify-between border-b border-slate-50 pb-4">
+                  <h3 className="font-black text-slate-800 text-lg flex items-center gap-3">
+                    <div className={`p-2.5 rounded-xl ${editingSopId ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                      {editingSopId ? <Edit size={22} /> : <Plus size={22} />}
+                    </div>
+                    {editingSopId ? 'PROSEDÜRÜ DÜZENLE' : 'YENİ SOP KARTI OLUŞTUR'}
+                  </h3>
+                </div>
+
+                <div className="space-y-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">SOP Başlığı (İşlem Adı)</label>
+                    <input 
+                      type="text" 
+                      placeholder="Örn: Basınç Valfi Değişimi" 
+                      className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:ring-2 ring-blue-500/20 transition-all" 
+                      value={sopForm.title} 
+                      onChange={e => setSopForm({...sopForm, title: e.target.value})} 
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Rehber Video Başlığı</label>
+                      <input type="text" placeholder="Eğitim_Videosu_V2" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs outline-none" value={sopForm.videoTitle} onChange={e => setSopForm({...sopForm, videoTitle: e.target.value})} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">Video URL / Link <LinkIcon size={12}/></label>
+                      <input type="text" placeholder="https://cloud.com/video1.mp4" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs outline-none" value={sopForm.videoUrl} onChange={e => setSopForm({...sopForm, videoUrl: e.target.value})} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">Uygulama Adımları</label>
+                    <div className="max-h-[300px] overflow-y-auto pr-2 custom-scrollbar space-y-3">
+                      {sopForm.steps.map((step, i) => (
+                        <div key={i} className="flex gap-2 group">
+                          <span className="w-10 h-12 flex items-center justify-center font-black text-slate-300 bg-slate-50 border border-slate-100 rounded-xl text-sm shrink-0">{i+1}</span>
+                          <div className="flex-1 relative">
+                            <input 
+                              type="text" 
+                              className="w-full p-3.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-blue-400 transition-colors" 
+                              value={step} 
+                              onChange={(e) => updateStep(i, e.target.value)} 
+                              placeholder="Talimatı buraya yazın..." 
+                            />
+                            {sopForm.steps.length > 1 && (
+                              <button onClick={() => removeStepField(i)} className="absolute right-2 top-3 p-1 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">
+                                <X size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <button 
+                      onClick={addStepField} 
+                      className="w-full py-3.5 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl text-[11px] font-black hover:border-blue-400 hover:text-blue-600 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Plus size={16}/> YENİ ADIM EKLE
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  {editingSopId && (
+                    <button onClick={resetForm} className="flex-1 bg-slate-100 text-slate-600 py-5 rounded-[2rem] font-bold text-sm hover:bg-slate-200 transition-all uppercase tracking-tighter">İPTAL</button>
+                  )}
+                  <button 
+                    onClick={handleSaveSop} 
+                    disabled={!sopForm.title}
+                    className={`flex-[2] text-white py-5 rounded-[2rem] font-black text-sm shadow-xl transition-all active:scale-95 flex items-center justify-center gap-2 uppercase tracking-widest ${editingSopId ? 'bg-orange-500 shadow-orange-100' : 'bg-blue-600 shadow-blue-100 hover:bg-blue-700 disabled:opacity-30'}`}
+                  >
+                    <Save size={20}/> {editingSopId ? 'GÜNCELLEMEYİ KAYDET' : 'KÜTÜPHANEYE KAYDET'}
+                  </button>
+                </div>
+              </div>
+
+              {/* SAĞ: SOP LİSTESİ VE KARTLAR */}
+              <div className="lg:col-span-7 space-y-6 pb-20">
+                <div className="flex items-center justify-between px-4">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">AKTİF PROSEDÜR KARTLARI</h4>
+                  <div className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full font-black text-[10px] border border-blue-100 uppercase">{library.length} KAYIT</div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-5">
+                  {library.length === 0 ? (
+                    <div className="text-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
+                       <Database size={48} className="mx-auto text-slate-200 mb-4" />
+                       <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Henüz hiçbir SOP kartı oluşturulmadı.</p>
+                    </div>
+                  ) : (
+                    library.map(sop => (
+                      <div 
+                        key={sop.id} 
+                        className={`bg-white p-6 rounded-[2.5rem] border-2 flex flex-col md:flex-row justify-between items-center transition-all group ${editingSopId === sop.id ? 'border-orange-400 ring-4 ring-orange-50 bg-orange-50/10' : 'border-white hover:border-blue-400 shadow-md hover:shadow-xl'}`}
+                      >
+                        <div className="flex items-center gap-5 flex-1 w-full">
+                          <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center border-2 shadow-inner transition-colors shrink-0 ${editingSopId === sop.id ? 'bg-orange-100 border-orange-200 text-orange-600' : 'bg-slate-50 border-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100'}`}>
+                            {sop.icon === 'ShieldAlert' ? <ShieldAlert size={28} /> : (sop.icon === 'Wrench' ? <Wrench size={28} /> : <FileText size={28} />)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-black text-slate-800 text-base leading-tight uppercase tracking-tight truncate">{sop.title}</h4>
+                            <div className="flex flex-wrap gap-3 mt-2">
+                              <span className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                                <ClipboardCheck size={14} className="text-blue-500" /> {sop.steps.length} İşlem Adımı
+                              </span>
+                              {sop.videoUrl && (
+                                <span className="text-[10px] text-indigo-500 font-black uppercase flex items-center gap-1.5 bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-100">
+                                  <Video size={14} /> Video Linki Aktif
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-6 md:mt-0 w-full md:w-auto border-t md:border-0 pt-4 md:pt-0">
+                          <button 
+                            onClick={() => startEditing(sop)} 
+                            className="flex-1 md:flex-none p-3.5 bg-slate-100 text-slate-500 hover:bg-orange-500 hover:text-white rounded-2xl transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-xs"
+                            title="Düzenle"
+                          >
+                            <Edit size={18} /> <span className="md:hidden">DÜZENLE</span>
+                          </button>
+                          <button 
+                            onClick={() => deleteSop(sop.id)} 
+                            className="flex-1 md:flex-none p-3.5 bg-slate-100 text-slate-400 hover:bg-red-600 hover:text-white rounded-2xl transition-all shadow-sm flex items-center justify-center gap-2 font-bold text-xs"
+                            title="Sil"
+                          >
+                            <Trash2 size={18} /> <span className="md:hidden">SİL</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      <footer className="bg-white border-t border-slate-200 p-6 text-center">
+         <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">VisionGuide AR Technology © 2026</p>
+      </footer>
+
+      <style>
+        {`
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+        
+        @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
+        .animate-scan { animation: scan 2.5s ease-in-out infinite; }
+        
+        input::placeholder { color: #cbd5e1; letter-spacing: normal; font-weight: normal; }
+        `}
+      </style>
+    </div>
+  );
+};
+
+export default App;
