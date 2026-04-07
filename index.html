@@ -4,39 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VisionGuide AR-SOP | Mühendis Paneli</title>
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & ReactDOM -->
+    <!-- React & ReactDOM CDN -->
     <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
-    <!-- Lucide Icons -->
+    <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Babel -->
+    <!-- Babel CDN (Tarayıcıda JSX çalıştırmak için) -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
-        input::placeholder { color: #cbd5e1; letter-spacing: normal; font-weight: normal; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
+    <!-- React'in yükleneceği alan -->
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // CDN ortamı için güvenli İkon bileşeni
+        /**
+         * CDN ortamında Lucide ikonlarını güvenli şekilde render eden bileşen.
+         */
         const Icon = ({ name, size = 24, className = "" }) => {
             const iconRef = useRef(null);
 
             useEffect(() => {
                 if (iconRef.current && window.lucide) {
-                    const kebabName = name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+                    // İkon ismini kebap-case formatına çevir (ShieldAlert -> shield-alert)
+                    const kebabName = name
+                        .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+                        .toLowerCase();
+
                     iconRef.current.innerHTML = '';
                     const iconElement = document.createElement('i');
                     iconElement.setAttribute('data-lucide', kebabName);
@@ -44,9 +50,15 @@
                     iconElement.style.width = `${size}px`;
                     iconElement.style.height = `${size}px`;
                     iconElement.style.display = 'inline-block';
+
                     iconRef.current.appendChild(iconElement);
+
                     window.lucide.createIcons({
-                        attrs: { width: size, height: size, 'stroke-width': 2 },
+                        attrs: {
+                            width: size,
+                            height: size,
+                            'stroke-width': 2
+                        },
                         nameAttr: 'data-lucide'
                     });
                 }
@@ -75,13 +87,12 @@
                     title: 'CNC Haftalık Bakım',
                     icon: 'Wrench',
                     description: 'Periyodik yağlama ve filtre kontrolü.',
-                    steps: ['Yağ seviyesini kontrol edin.', 'Filtreleri temizleyin.'],
+                    steps: ['Yağ seviyesini kontrol edin.', 'Filtreleri temizleyin.', 'Rulmanları gresleyin.'],
                     imageUrl: 'https://images.unsplash.com/photo-1537462715879-360eeb61a0ad?auto=format&fit=crop&q=80&w=400'
                 }
             ]);
 
-            const [editingSopId, setEditingSopId] = useState(null);
-            const [sopForm, setSopForm] = useState({ title: '', steps: [''], imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=400' });
+            const [sopForm, setSopForm] = useState({ title: '', steps: [''] });
 
             const handleAuth = (e) => {
                 if (e) e.preventDefault();
@@ -95,79 +106,126 @@
 
             const handleSaveSop = () => {
                 if (!sopForm.title) return;
-                if (editingSopId) {
-                    setLibrary(library.map(sop => sop.id === editingSopId ? { ...sopForm, id: editingSopId, icon: sop.icon } : sop));
-                } else {
-                    const newId = Math.random().toString(36).substr(2, 9);
-                    setLibrary([...library, { ...sopForm, id: newId, icon: 'FileText' }]);
-                }
-                setEditingSopId(null);
-                setSopForm({ title: '', steps: [''], imageUrl: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=400' });
+                const newId = Math.random().toString(36).substr(2, 9);
+                setLibrary([...library, { ...sopForm, id: newId, icon: 'FileText', steps: sopForm.steps.filter(s => s !== '') }]);
+                setSopForm({ title: '', steps: [''] });
             };
 
             return (
                 <div className="min-h-screen flex flex-col">
-                    <header className="bg-white border-b p-4 sticky top-0 z-50 shadow-sm">
+                    {/* Header */}
+                    <header className="bg-white border-b border-slate-200 p-4 sticky top-0 z-50 shadow-sm">
                         <div className="max-w-7xl mx-auto flex justify-between items-center">
                             <div className="flex items-center gap-3">
-                                <div className="bg-blue-600 p-2 rounded-xl">
+                                <div className="bg-blue-600 p-2 rounded-xl shadow-lg">
                                     <Icon name="Layers" size={24} className="text-white" />
                                 </div>
-                                <h1 className="font-black text-xl text-slate-800">VisionGuide <span className="text-blue-600">AR-SOP</span></h1>
+                                <div>
+                                    <h1 className="font-black text-xl text-slate-800 leading-none">VisionGuide <span className="text-blue-600 italic">AR-SOP</span></h1>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Mühendis Paneli</p>
+                                </div>
                             </div>
                             {isAuthenticated && (
-                                <button onClick={() => setIsAuthenticated(false)} className="px-4 py-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs">ÇIKIŞ</button>
+                                <button 
+                                    onClick={() => setIsAuthenticated(false)} 
+                                    className="px-4 py-2 bg-red-50 text-red-600 rounded-xl font-bold text-xs hover:bg-red-600 hover:text-white transition-all"
+                                >
+                                    ÇIKIŞ
+                                </button>
                             )}
                         </div>
                     </header>
 
+                    {/* Main Content */}
                     <main className="flex-1 max-w-7xl mx-auto w-full p-6">
                         {!isAuthenticated ? (
-                            <div className="max-w-md mx-auto mt-20 p-10 bg-white rounded-[3rem] shadow-2xl text-center space-y-8">
-                                <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto text-blue-600">
+                            /* Login Screen */
+                            <div className="max-w-md mx-auto mt-20 p-10 bg-white border rounded-[3rem] shadow-2xl text-center space-y-8">
+                                <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center mx-auto text-blue-600 shadow-inner">
                                     <Icon name="Lock" size={40} />
                                 </div>
-                                <h2 className="text-3xl font-black">Erişim Anahtarı</h2>
+                                <div className="space-y-2">
+                                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">Erişim Anahtarı</h2>
+                                    <p className="text-sm text-slate-500">Yönetim paneli için şifrenizi girin.</p>
+                                </div>
                                 <form onSubmit={handleAuth} className="space-y-4">
                                     <input 
                                         type="password" 
                                         placeholder="••••" 
-                                        className="w-full p-5 bg-slate-50 border rounded-[2rem] text-center text-2xl font-black outline-none focus:ring-4 ring-blue-500/10"
+                                        className="w-full p-5 bg-slate-50 border border-slate-200 rounded-[2rem] text-center text-2xl font-black tracking-[0.5em] outline-none focus:ring-4 ring-blue-500/10 transition-all"
                                         value={accessKey}
                                         onChange={(e) => setAccessKey(e.target.value)}
+                                        autoFocus
                                     />
-                                    {authError && <p className="text-xs text-red-500 font-bold">{authError}</p>}
+                                    {authError && <p className="text-xs text-red-500 font-bold bg-red-50 py-2 rounded-lg">{authError}</p>}
                                     <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black text-lg shadow-xl hover:bg-blue-600 transition-all">PANELİ AÇ</button>
                                 </form>
                             </div>
                         ) : (
+                            /* Dashboard Area */
                             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                                <div className="lg:col-span-5 bg-white rounded-[3rem] p-8 border h-fit space-y-6 shadow-sm">
-                                    <h3 className="font-black text-lg flex items-center gap-3">
-                                        <Icon name="Plus" className="text-blue-600" /> PROSEDÜR EKLE
+                                {/* Form Column */}
+                                <div className="lg:col-span-5 bg-white rounded-[3rem] p-8 border border-slate-200 h-fit space-y-6 shadow-sm sticky top-28">
+                                    <h3 className="font-black text-slate-800 text-lg flex items-center gap-3">
+                                        <div className="p-2 bg-blue-100 text-blue-600 rounded-xl"><Icon name="Plus" size={20} /></div>
+                                        YENİ PROSEDÜR EKLE
                                     </h3>
-                                    <input type="text" placeholder="SOP Başlığı" className="w-full p-4 bg-slate-50 border rounded-2xl text-sm font-bold outline-none" value={sopForm.title} onChange={e => setSopForm({...sopForm, title: e.target.value})} />
-                                    <button onClick={handleSaveSop} className="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black shadow-xl">KAYDET</button>
+                                    <div className="space-y-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">SOP Başlığı</label>
+                                            <input 
+                                                type="text" 
+                                                className="w-full p-4 bg-slate-50 border rounded-2xl text-sm font-bold outline-none focus:border-blue-400" 
+                                                value={sopForm.title} 
+                                                onChange={e => setSopForm({...sopForm, title: e.target.value})} 
+                                            />
+                                        </div>
+                                        <button 
+                                            onClick={handleSaveSop} 
+                                            disabled={!sopForm.title}
+                                            className="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black text-sm shadow-xl hover:bg-blue-700 transition-all disabled:opacity-30"
+                                        >
+                                            KAYDET VE KÜTÜPHANEYE EKLE
+                                        </button>
+                                    </div>
                                 </div>
 
+                                {/* List Column */}
                                 <div className="lg:col-span-7 space-y-6">
-                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">AKTİF PROSEDÜRLER ({library.length})</h4>
-                                    {library.map(sop => (
-                                        <div key={sop.id} className="bg-white p-6 rounded-[2.5rem] border flex justify-between items-center shadow-md">
-                                            <div className="flex items-center gap-5">
-                                                <div className="w-16 h-16 bg-slate-50 rounded-[1.5rem] flex items-center justify-center">
-                                                    <Icon name={sop.icon} size={28} />
+                                    <div className="flex items-center justify-between px-4">
+                                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">AKTİF PROSEDÜRLER</h4>
+                                        <div className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full font-black text-[10px]">{library.length} KAYIT</div>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {library.map(sop => (
+                                            <div key={sop.id} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 flex justify-between items-center hover:border-blue-300 transition-all shadow-md group">
+                                                <div className="flex items-center gap-5">
+                                                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                                                        <Icon name={sop.icon || 'FileText'} size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-black text-slate-800 uppercase tracking-tight">{sop.title}</h4>
+                                                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{sop.steps.length} Uygulama Adımı</p>
+                                                    </div>
                                                 </div>
-                                                <h4 className="font-black text-slate-800 uppercase">{sop.title}</h4>
+                                                <button 
+                                                    onClick={() => setLibrary(library.filter(s => s.id !== sop.id))}
+                                                    className="p-3 bg-slate-50 text-slate-300 hover:bg-red-600 hover:text-white rounded-xl transition-all"
+                                                >
+                                                    <Icon name="Trash2" size={18} />
+                                                </button>
                                             </div>
-                                            <button onClick={() => setLibrary(library.filter(s => s.id !== sop.id))} className="p-3 bg-red-50 text-red-500 rounded-xl"><Icon name="Trash2" size={18} /></button>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         )}
                     </main>
-                    <footer className="p-6 text-center text-[10px] text-slate-400 font-black uppercase tracking-widest">VisionGuide AR © 2026</footer>
+
+                    {/* Footer */}
+                    <footer className="bg-white border-t border-slate-200 p-6 text-center">
+                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">VisionGuide AR Technology © 2026</p>
+                    </footer>
                 </div>
             );
         };
